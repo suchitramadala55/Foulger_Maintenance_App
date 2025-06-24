@@ -5,7 +5,7 @@ import datetime
 import pandas as pd
 
 # --------------------------
-# ✅ Page Config & Local Logo
+# ✅ Page Config & Logo
 # --------------------------
 st.set_page_config(
     page_title="Foulger Homes Maintenance",
@@ -13,7 +13,6 @@ st.set_page_config(
     layout="centered"
 )
 
-# ✅ Use your final uploaded logo
 st.image("foulger_homes.png", width=150)
 st.title("🏠 Foulger Homes Maintenance Portal")
 
@@ -115,18 +114,36 @@ def update_request(req_id, priority, status, notes):
     conn.close()
 
 # --------------------------
-# ✅ App Logic: Role & Pages
+# ✅ Improved Navigation
 # --------------------------
+
 if 'role' not in st.session_state:
     st.session_state['role'] = None
 
-if st.session_state['role'] is None:
-    choice = st.sidebar.selectbox(
-        "Choose an option:",
-        ["Tenant Register", "Tenant Login", "Admin Login"]
-    )
+if 'page' not in st.session_state:
+    st.session_state['page'] = "register"
 
-    if choice == "Tenant Register":
+# If not logged in, show navigation buttons
+if st.session_state['role'] is None:
+    st.subheader("What would you like to do?")
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        if st.button("📝 Tenant Register"):
+            st.session_state['page'] = "register"
+
+    with col2:
+        if st.button("🔑 Tenant Login"):
+            st.session_state['page'] = "tenant_login"
+
+    with col3:
+        if st.button("🔐 Admin Login"):
+            st.session_state['page'] = "admin_login"
+
+    # ✅ Handle selected page
+    page = st.session_state['page']
+
+    if page == "register":
         st.header("📝 Tenant Registration")
         unit = st.text_input("Unit Number")
         name = st.text_input("Name")
@@ -141,7 +158,7 @@ if st.session_state['role'] is None:
             else:
                 st.error("❌ Unit number already exists.")
 
-    elif choice == "Tenant Login":
+    elif page == "tenant_login":
         st.header("🔑 Tenant Login")
         unit = st.text_input("Unit Number")
         password = st.text_input("Password", type="password")
@@ -153,8 +170,8 @@ if st.session_state['role'] is None:
             else:
                 st.error("❌ Invalid credentials.")
 
-    elif choice == "Admin Login":
-        st.header("🔑 Admin Login")
+    elif page == "admin_login":
+        st.header("🔐 Admin Login")
         username = st.text_input("Username")
         password = st.text_input("Password", type="password")
         if st.button("Login"):
@@ -170,6 +187,7 @@ elif st.session_state['role'] == 'tenant':
     st.header("👤 Tenant Dashboard")
     if st.button("Logout"):
         st.session_state['role'] = None
+        st.session_state['page'] = "register"
 
     st.subheader("Submit Maintenance Request")
     description = st.text_area("Describe the issue")
@@ -191,6 +209,7 @@ elif st.session_state['role'] == 'admin':
     st.header("🗂️ Admin Dashboard")
     if st.button("Logout"):
         st.session_state['role'] = None
+        st.session_state['page'] = "register"
 
     data = get_all_requests()
     for row in data:
@@ -208,6 +227,3 @@ elif st.session_state['role'] == 'admin':
             if st.button(f"Update ID {row[0]}"):
                 update_request(row[0], priority, status, notes)
                 st.success("✅ Updated!")
-
-
-
