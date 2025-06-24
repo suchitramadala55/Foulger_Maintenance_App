@@ -5,7 +5,7 @@ import datetime
 import pandas as pd
 
 # --------------------------
-# ✅ Page Config & Logo
+# ✅ Config
 # --------------------------
 st.set_page_config(
     page_title="Foulger Homes Maintenance",
@@ -17,7 +17,7 @@ st.image("foulger_homes.png", width=150)
 st.title("🏠 Foulger Homes Maintenance Portal")
 
 # --------------------------
-# ✅ Database Functions
+# ✅ DB Helpers
 # --------------------------
 def get_conn():
     return sqlite3.connect('maintenance.db')
@@ -129,16 +129,16 @@ def reset_tenant_password(unit, phone, new_password):
         return False
 
 # --------------------------
-# ✅ Improved Navigation
+# ✅ Navigation State
 # --------------------------
-
 if 'role' not in st.session_state:
     st.session_state['role'] = None
-
 if 'page' not in st.session_state:
     st.session_state['page'] = "register"
 
-# If not logged in, show navigation buttons
+# --------------------------
+# ✅ If Not Logged In
+# --------------------------
 if st.session_state['role'] is None:
     st.subheader("What would you like to do?")
     col1, col2, col3, col4 = st.columns(4)
@@ -159,7 +159,6 @@ if st.session_state['role'] is None:
         if st.button("🔓 Reset Password"):
             st.session_state['page'] = "reset_password"
 
-    # ✅ Handle selected page
     page = st.session_state['page']
 
     if page == "register":
@@ -175,7 +174,7 @@ if st.session_state['role'] is None:
                 st.session_state['tenant_id'] = tenant_id
                 st.success("✅ Registered and logged in!")
             else:
-                st.error("❌ Unit number already exists.")
+                st.error("❌ Unit already exists.")
 
     elif page == "tenant_login":
         st.header("🔑 Tenant Login")
@@ -188,9 +187,6 @@ if st.session_state['role'] is None:
                 st.session_state['tenant_id'] = tenant_id
             else:
                 st.error("❌ Invalid credentials.")
-
-        if st.button("Forgot Password?"):
-            st.session_state['page'] = "reset_password"
 
     elif page == "admin_login":
         st.header("🔐 Admin Login")
@@ -211,7 +207,7 @@ if st.session_state['role'] is None:
             if reset_tenant_password(unit, phone, new_pw):
                 st.success("✅ Password reset successfully!")
             else:
-                st.error("❌ No matching tenant found.")
+                st.error("❌ No match found.")
 
 # --------------------------
 # ✅ Tenant Dashboard
@@ -230,49 +226,55 @@ elif st.session_state['role'] == 'tenant':
 
     st.subheader("Your Requests")
     data = get_tenant_requests(st.session_state['tenant_id'])
-    columns = ["ID", "Issue", "Priority", "Status", "Admin Notes", "Created At", "Updated At"]
-    df = pd.DataFrame(data, columns=columns)
+    df = pd.DataFrame(data, columns=["ID", "Issue", "Priority", "Status", "Admin Notes", "Created At", "Updated At"])
     st.dataframe(df, use_container_width=True)
 
 # --------------------------
-# ✅ Admin Dashboard + Reports
+# ✅ Admin Dashboard with Tabs!
 # --------------------------
 elif st.session_state['role'] == 'admin':
-    st.header("🗂️ Admin Dashboard")
-    if st.button("Logout"):
-        st.session_state['role'] = None
-        st.session_state['page'] = "register"
+    st.header("📂 Admin Dashboard")
 
-    data = get_all_requests()
-    for row in data:
-        with st.expander(f"Request ID: {row[0]} | Unit: {row[1]} | Tenant: {row[2]} | Status: {row[5]}"):
-            st.write(f"**Issue:** {row[3]}")
-            notes = st.text_area(f"Admin Notes for ID {row[0]}", row[6])
-            priority = st.selectbox(
-                f"Priority for ID {row[0]}", ['Low', 'Normal', 'High'],
-                index=['Low', 'Normal', 'High'].index(row[4])
-            )
-            status = st.selectbox(
-                f"Status for ID {row[0]}", ['Submitted', 'In Progress', 'Completed'],
-                index=['Submitted', 'In Progress', 'Completed'].index(row[5])
-            )
-            if st.button(f"Update ID {row[0]}"):
-                update_request(row[0], priority, status, notes)
-                st.success("✅ Updated!")
+    tab1, tab2 = st.tabs(["🗂️ Manage Requests", "📑 Reports"])
 
-    st.subheader("📑 Reports")
-    unit_filter = st.text_input("Enter Unit Number to see report:")
+    with tab1:
+        data = get_all_requests()
+        for row in data:
+            with st.expander(f"Request ID: {row[0]} | Unit: {row[1]} | Tenant: {row[2]} | Status: {row[5]}"):
+                st.write(f"**Issue:** {row[3]}")
+                notes = st.text_area(f"Admin Notes for ID {row[0]}", row[6])
+                priority = st.selectbox(
+                    f"Priority for ID {row[0]}", ['Low', 'Normal', 'High'],
+                    index=['Low', 'Normal', 'High'].index(row[4])
+                )
+                status = st.selectbox(
+                    f"Status for ID {row[0]}", ['Submitted', 'In Progress', 'Completed'],
+                    index=['Submitted', 'In Progress', 'Completed'].index(row[5])
+                )
+                if st.button(f"Update ID {row[0]}"):
+                    update_request(row[0], priority, status, notes)
+                    st.success("✅ Updated!")
 
-    if unit_filter:
+    with tab2:
+        st.subheader("📑 Reports & CSV Download")
+        unit_filter = st.text_input("Enter Unit Number to Filter")
         conn = get_conn()
         c = conn.cursor()
-        c.execute("""
-            SELECT r.id, t.unit_number, t.name, r.issue_description,
-                   r.priority, r.status, r.admin_notes, r.created_at, r.updated_at
-            FROM requests r 
-            JOIN tenants t ON r.tenant_id = t.id
-            WHERE t.unit_number = ?
-        """, (unit_filter,))
+        if unit_filter:
+            c.execute("""
+                SELECT r.id, t.unit_number, t.name, r.issue_description,
+                       r.priority, r.status, r.admin_notes, r.created_at, r.updated_at
+                FROM requests r 
+                JOIN tenants t ON r.tenant_id = t.id
+                WHERE t.unit_number = ?
+            """, (unit_filter,))
+        else:
+            c.execute("""
+                SELECT r.id, t.unit_number, t.name, r.issue_description,
+                       r.priority, r.status, r.admin_notes, r.created_at, r.updated_at
+                FROM requests r 
+                JOIN tenants t ON r.tenant_id = t.id
+            """)
         report_rows = c.fetchall()
         conn.close()
 
@@ -283,6 +285,6 @@ elif st.session_state['role'] == 'admin':
             ])
             st.dataframe(df_report, use_container_width=True)
             csv = df_report.to_csv(index=False).encode('utf-8')
-            st.download_button("📥 Download CSV", data=csv, file_name=f"unit_{unit_filter}_report.csv", mime='text/csv')
+            st.download_button("📥 Download CSV", data=csv, file_name="maintenance_report.csv", mime='text/csv')
         else:
-            st.info("No records found for this unit.")
+            st.info("No records found for this unit or all units.")
