@@ -189,7 +189,6 @@ if st.session_state['role'] is None:
             else:
                 st.error("❌ Invalid credentials.")
 
-        # ✅ Forgot Password link under login
         if st.button("Forgot Password?"):
             st.session_state['page'] = "reset_password"
 
@@ -228,7 +227,6 @@ elif st.session_state['role'] == 'tenant':
     if st.button("Submit Request"):
         submit_request(st.session_state['tenant_id'], description)
         st.success("✅ Request submitted!")
-        st.session_state['temp'] = datetime.datetime.now()
 
     st.subheader("Your Requests")
     data = get_tenant_requests(st.session_state['tenant_id'])
@@ -237,7 +235,7 @@ elif st.session_state['role'] == 'tenant':
     st.dataframe(df, use_container_width=True)
 
 # --------------------------
-# ✅ Admin Dashboard
+# ✅ Admin Dashboard + Reports
 # --------------------------
 elif st.session_state['role'] == 'admin':
     st.header("🗂️ Admin Dashboard")
@@ -262,3 +260,29 @@ elif st.session_state['role'] == 'admin':
                 update_request(row[0], priority, status, notes)
                 st.success("✅ Updated!")
 
+    st.subheader("📑 Reports")
+    unit_filter = st.text_input("Enter Unit Number to see report:")
+
+    if unit_filter:
+        conn = get_conn()
+        c = conn.cursor()
+        c.execute("""
+            SELECT r.id, t.unit_number, t.name, r.issue_description,
+                   r.priority, r.status, r.admin_notes, r.created_at, r.updated_at
+            FROM requests r 
+            JOIN tenants t ON r.tenant_id = t.id
+            WHERE t.unit_number = ?
+        """, (unit_filter,))
+        report_rows = c.fetchall()
+        conn.close()
+
+        if report_rows:
+            df_report = pd.DataFrame(report_rows, columns=[
+                "ID", "Unit", "Name", "Issue", "Priority",
+                "Status", "Admin Notes", "Created At", "Updated At"
+            ])
+            st.dataframe(df_report, use_container_width=True)
+            csv = df_report.to_csv(index=False).encode('utf-8')
+            st.download_button("📥 Download CSV", data=csv, file_name=f"unit_{unit_filter}_report.csv", mime='text/csv')
+        else:
+            st.info("No records found for this unit.")
