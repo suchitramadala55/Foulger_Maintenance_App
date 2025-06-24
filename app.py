@@ -113,6 +113,21 @@ def update_request(req_id, priority, status, notes):
     conn.commit()
     conn.close()
 
+def reset_tenant_password(unit, phone, new_password):
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute("SELECT id FROM tenants WHERE unit_number = ? AND phone = ?", (unit, phone))
+    row = c.fetchone()
+    if row:
+        hashed = hash_pw(new_password)
+        c.execute("UPDATE tenants SET password_hash = ? WHERE id = ?", (hashed, row[0]))
+        conn.commit()
+        conn.close()
+        return True
+    else:
+        conn.close()
+        return False
+
 # --------------------------
 # ✅ Improved Navigation
 # --------------------------
@@ -126,7 +141,7 @@ if 'page' not in st.session_state:
 # If not logged in, show navigation buttons
 if st.session_state['role'] is None:
     st.subheader("What would you like to do?")
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
 
     with col1:
         if st.button("📝 Tenant Register"):
@@ -139,6 +154,10 @@ if st.session_state['role'] is None:
     with col3:
         if st.button("🔐 Admin Login"):
             st.session_state['page'] = "admin_login"
+
+    with col4:
+        if st.button("🔓 Reset Password"):
+            st.session_state['page'] = "reset_password"
 
     # ✅ Handle selected page
     page = st.session_state['page']
@@ -179,6 +198,17 @@ if st.session_state['role'] is None:
                 st.session_state['role'] = 'admin'
             else:
                 st.error("❌ Invalid credentials.")
+
+    elif page == "reset_password":
+        st.header("🔓 Reset Tenant Password")
+        unit = st.text_input("Unit Number")
+        phone = st.text_input("Phone")
+        new_pw = st.text_input("New Password", type="password")
+        if st.button("Reset Password"):
+            if reset_tenant_password(unit, phone, new_pw):
+                st.success("✅ Password reset successfully!")
+            else:
+                st.error("❌ No matching tenant found.")
 
 # --------------------------
 # ✅ Tenant Dashboard
