@@ -189,6 +189,10 @@ if st.session_state['role'] is None:
             else:
                 st.error("❌ Invalid credentials.")
 
+        # ✅ Forgot Password link under login
+        if st.button("Forgot Password?"):
+            st.session_state['page'] = "reset_password"
+
     elif page == "admin_login":
         st.header("🔐 Admin Login")
         username = st.text_input("Username")
@@ -257,3 +261,4 @@ elif st.session_state['role'] == 'admin':
             if st.button(f"Update ID {row[0]}"):
                 update_request(row[0], priority, status, notes)
                 st.success("✅ Updated!")
+
