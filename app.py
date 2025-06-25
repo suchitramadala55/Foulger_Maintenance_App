@@ -234,6 +234,9 @@ elif st.session_state['role'] == 'tenant':
 # --------------------------
 elif st.session_state['role'] == 'admin':
     st.header("📂 Admin Dashboard")
+    if st.button("Logout"):
+        st.session_state['role'] = None
+        st.session_state['page'] = "register"
 
     tab1, tab2 = st.tabs(["🗂️ Manage Requests", "📑 Reports"])
 
@@ -288,7 +291,3 @@ elif st.session_state['role'] == 'admin':
             st.download_button("📥 Download CSV", data=csv, file_name="maintenance_report.csv", mime='text/csv')
         else:
             st.info("No records found for this unit or all units.")
-
-
-
-
