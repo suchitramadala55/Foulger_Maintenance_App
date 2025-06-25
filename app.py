@@ -4,10 +4,12 @@ import bcrypt
 import datetime
 import pandas as pd
 
-# --------------------------
-# ✅ Page Config & Logo
-# --------------------------
-st.set_page_config(page_title="Foulger Homes Maintenance", page_icon="🏠")
+st.set_page_config(
+    page_title="Foulger Homes Maintenance",
+    page_icon="🏠",
+    layout="centered"
+)
+
 st.image("foulger_homes.png", width=150)
 st.title("🏠 Foulger Homes Maintenance Portal")
 
@@ -88,7 +90,7 @@ def get_all_requests():
     c = conn.cursor()
     c.execute("""
         SELECT r.id, t.unit_number, t.name, r.issue_description,
-               r.priority, r.status, r.admin_notes, r.created_at, r.updated_at
+               r.priority, r.status, r.admin_notes, r.created_at
         FROM requests r 
         JOIN tenants t ON r.tenant_id = t.id
     """)
@@ -109,18 +111,20 @@ def update_request(req_id, priority, status, notes):
     conn.close()
 
 # --------------------------
-# ✅ App Logic
+# ✅ App Logic: Role & Pages
 # --------------------------
 if 'role' not in st.session_state:
     st.session_state['role'] = None
 
 if st.session_state['role'] is None:
-    choice = st.sidebar.selectbox(
-        "Choose an option:",
-        ["Tenant Register", "Tenant Login", "Admin Login"]
+    st.subheader("What would you like to do?")
+    choice = st.radio(
+        "Select an option below:",
+        ["📝 Tenant Register", "🔑 Tenant Login", "🛠️ Admin Login"],
+        horizontal=True
     )
 
-    if choice == "Tenant Register":
+    if choice == "📝 Tenant Register":
         st.header("📝 Tenant Registration")
         unit = st.text_input("Unit Number")
         name = st.text_input("Name")
@@ -135,7 +139,7 @@ if st.session_state['role'] is None:
             else:
                 st.error("❌ Unit number already exists.")
 
-    elif choice == "Tenant Login":
+    elif choice == "🔑 Tenant Login":
         st.header("🔑 Tenant Login")
         unit = st.text_input("Unit Number")
         password = st.text_input("Password", type="password")
@@ -147,7 +151,7 @@ if st.session_state['role'] is None:
             else:
                 st.error("❌ Invalid credentials.")
 
-    elif choice == "Admin Login":
+    elif choice == "🛠️ Admin Login":
         st.header("🔑 Admin Login")
         username = st.text_input("Username")
         password = st.text_input("Password", type="password")
@@ -157,9 +161,6 @@ if st.session_state['role'] is None:
             else:
                 st.error("❌ Invalid credentials.")
 
-# --------------------------
-# ✅ Tenant Dashboard
-# --------------------------
 elif st.session_state['role'] == 'tenant':
     st.header("👤 Tenant Dashboard")
     if st.button("Logout"):
@@ -170,21 +171,19 @@ elif st.session_state['role'] == 'tenant':
     if st.button("Submit Request"):
         submit_request(st.session_state['tenant_id'], description)
         st.success("✅ Request submitted!")
+        st.session_state['temp'] = datetime.datetime.now()
 
     st.subheader("Your Requests")
     data = get_tenant_requests(st.session_state['tenant_id'])
-    df = pd.DataFrame(data, columns=["ID", "Issue", "Priority", "Status", "Admin Notes", "Created At", "Updated At"])
+    columns = ["ID", "Issue", "Priority", "Status", "Admin Notes", "Created At", "Updated At"]
+    df = pd.DataFrame(data, columns=columns)
     st.dataframe(df, use_container_width=True)
 
-# --------------------------
-# ✅ Admin Dashboard
-# --------------------------
 elif st.session_state['role'] == 'admin':
-    st.header("📂 Admin Dashboard")
+    st.header("🗂️ Admin Dashboard")
     if st.button("Logout"):
         st.session_state['role'] = None
 
-    st.subheader("🗂️ Manage Requests")
     data = get_all_requests()
     for row in data:
         with st.expander(f"Request ID: {row[0]} | Unit: {row[1]} | Tenant: {row[2]} | Status: {row[5]}"):
@@ -202,13 +201,11 @@ elif st.session_state['role'] == 'admin':
                 update_request(row[0], priority, status, notes)
                 st.success("✅ Updated!")
 
-    # ✅ Export section
-    st.subheader("📑 Reports")
-    df = pd.DataFrame(data, columns=[
-        "Request ID", "Unit Number", "Tenant Name", "Issue",
-        "Priority", "Status", "Admin Notes", "Created At", "Updated At"
-    ])
-    csv = df.to_csv(index=False).encode('utf-8')
-    st.download_button("📥 Download All Requests as CSV", csv, "requests_report.csv", "text/csv")
+    st.download_button(
+        label="⬇️ Download All Requests as CSV",
+        data=pd.DataFrame(data, columns=["ID", "Unit", "Name", "Issue", "Priority", "Status", "Admin Notes", "Created At"]).to_csv(index=False),
+        file_name="maintenance_requests.csv",
+        mime="text/csv"
+    )
 
 
